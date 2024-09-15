@@ -2893,27 +2893,27 @@ parser_var_assign_random(char *name, cmd_t *cmd)
 		rndp->rnd_type |= RAND_TYPE_TABLE;
 	} else {
 		rndp->rnd_probtabs = NULL;
-	}
 
-	/* Get the type for the random variable */
-	if ((attr = get_attr(cmd, FSA_TYPE))) {
-		int disttype = (int)avd_get_int(attr->attr_avd);
+		/* Get the type for the random variable */
+		if ((attr = get_attr(cmd, FSA_TYPE))) {
+			int disttype = (int)avd_get_int(attr->attr_avd);
 
-		switch (disttype) {
-		case FSV_RANDUNI:
-			rndp->rnd_type |= RAND_TYPE_UNIFORM;
-			break;
-		case FSA_RANDGAMMA:
+			switch (disttype) {
+			case FSV_RANDUNI:
+				rndp->rnd_type |= RAND_TYPE_UNIFORM;
+				break;
+			case FSA_RANDGAMMA:
+				rndp->rnd_type |= RAND_TYPE_GAMMA;
+				break;
+			/*case FSV_RANDTAB:
+				filebench_log(LOG_ERROR,
+					"Table distribution type without prob table");
+				break; */
+			}
+		} else {
+			/* default to gamma distribution type */
 			rndp->rnd_type |= RAND_TYPE_GAMMA;
-			break;
-		case FSV_RANDTAB:
-			filebench_log(LOG_ERROR,
-			    "Table distribution type without prob table");
-			break;
 		}
-	} else {
-		/* default to gamma distribution type */
-		rndp->rnd_type |= RAND_TYPE_GAMMA;
 	}
 
 	/* Get the seed for the random variable */
