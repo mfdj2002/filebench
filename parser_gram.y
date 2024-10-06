@@ -1123,6 +1123,8 @@ attrs_flowop:
 | FSA_VALUE { $$ = FSA_VALUE;}
 | FSA_BLOCKING { $$ = FSA_BLOCKING;}
 | FSA_HIGHWATER { $$ = FSA_HIGHWATER;}
+| FSA_MIN { $$= FSA_MIN;}
+| FSA_MAX { $$= FSA_MAX;}
 | FSA_IOSIZE { $$ = FSA_IOSIZE;}
 | FSA_NOREADAHEAD { $$ = FSA_NOREADAHEAD;};
 
@@ -2057,9 +2059,18 @@ parser_flowop_get_attrs(cmd_t *cmd, flowop_t *flowop)
 	}
 
 	/* find file or leaf directory by index number */
-	if ((attr = get_attr(cmd, FSA_INDEXED)))
+	if ((attr = get_attr(cmd, FSA_INDEXED))) {
 		flowop->fo_fileindex = attr->attr_avd;
-	else
+		/* set min and max for fileindex */
+		if ((attr = get_attr(cmd, FSA_MIN)))
+			flowop->fo_fileindex_min = attr->attr_avd;
+		else
+			flowop->fo_fileindex_min = NULL;
+		if ((attr = get_attr(cmd, FSA_MAX)))
+			flowop->fo_fileindex_max = attr->attr_avd;
+		else
+			flowop->fo_fileindex_max = NULL;
+	} else
 		flowop->fo_fileindex = NULL;
 
 	/* Read Ahead Diable */

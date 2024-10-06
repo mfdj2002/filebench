@@ -64,6 +64,8 @@ typedef struct flowop {
 	avd_t		fo_directio;	/* Attr */
 	avd_t		fo_rotatefd;	/* Attr */
 	avd_t		fo_fileindex;	/* Attr */
+	avd_t		fo_fileindex_min;
+	avd_t		fo_fileindex_max;
 	avd_t		fo_noreadahead; /* Attr */
 	struct flowstats	fo_stats;	/* Flow statistics */
 	pthread_cond_t	fo_cv;		/* Block/wakeup cv */

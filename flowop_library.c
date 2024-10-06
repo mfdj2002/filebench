@@ -243,7 +243,13 @@ flowoplib_pickfile(filesetentry_t **filep, flowop_t *flowop, int flags, int tid)
 
 	if (flowop->fo_fileindex) {
 		fileindex = (int)(avd_get_dbl(flowop->fo_fileindex));
-		fileindex = fileindex % fileset->fs_constentries;
+		int max = (int)(avd_get_int(flowop->fo_fileindex_max));
+		int min = (int)(avd_get_int(flowop->fo_fileindex_min));
+		filebench_log(LOG_DEBUG_IMPL, "using index, index max = %d, min = %d", max, min);
+		fileindex = fileindex % (max + 1 - min) + min;
+		filebench_log(LOG_DEBUG_IMPL, "chosen fileindex: %d", fileindex);
+		//in the old impl, setting a min to the randvar of a fileidx
+		//doesn't do anything because you wrap around anyways
 		flags |= FILESET_PICKBYINDEX;
 	} else {
 		fileindex = 0;

@@ -227,6 +227,17 @@ flowop_initflow(flowop_t *flowop)
 	if (flowop->fo_wss)
 		flowop->fo_constwss = avd_get_int(flowop->fo_wss);
 
+	if (flowop->fo_fileindex) {
+		if (flowop->fo_fileindex_min == NULL) {
+			// filebench_log(LOG_ERROR, "flowop %s-%d init failed",
+		    // flowop->fo_name, flowop->fo_instance);
+			flowop->fo_fileindex_min = avd_int_alloc(0);
+		}
+		if (flowop->fo_fileindex_max == NULL) {
+			flowop->fo_fileindex_max = avd_int_alloc(flowop->fo_fileset->fs_constentries - 1);
+		}
+	}
+
 	if ((*flowop->fo_init)(flowop) < 0) {
 		filebench_log(LOG_ERROR, "flowop %s-%d init failed",
 		    flowop->fo_name, flowop->fo_instance);
