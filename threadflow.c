@@ -33,6 +33,7 @@
 #include "threadflow.h"
 #include "flowop.h"
 #include "ipc.h"
+#include "cvars/mtwist/mtwist.h"
 
 static threadflow_t *threadflow_define_common(procflow_t *procflow,
     char *name, threadflow_t *inherit, int instance);
@@ -104,6 +105,9 @@ threadflow_createthread(threadflow_t *threadflow)
 int
 threadflow_init(procflow_t *procflow)
 {
+	// reset the random seed
+	mt_seed32new(procflow->seed);
+	filebench_log(LOG_INFO, "Setting random seed to %d", procflow->seed);
 	threadflow_t *threadflow = procflow->pf_threads;
 	int ret = 0;
 

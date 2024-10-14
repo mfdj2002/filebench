@@ -1034,6 +1034,7 @@ attrs_define_proc:
   FSA_NAME { $$ = FSA_NAME;}
 | FSA_INSTANCES { $$ = FSA_INSTANCES;}
 | FSA_NICE { $$ = FSA_NICE;}
+| FSA_RANDSEED { $$ = FSA_RANDSEED;}
 
 attrs_define_file:
   FSA_NAME { $$ = FSA_NAME;}
@@ -1883,6 +1884,15 @@ parser_proc_define(cmd_t *cmd)
 	} else
 		procflow->pf_nice = avd_int_alloc(0);
 
+	attr = get_attr(cmd, FSA_RANDSEED);
+	if (attr)
+		procflow->seed = (int)avd_get_int(attr->attr_avd);
+	else {
+		procflow->seed = 0;
+		filebench_log(LOG_DEBUG_IMPL,
+		    "Defaulting to seed = 0");
+	}
+
 	/* Create the list of threads for this process  */
 	for (inner_cmd = cmd->cmd_list; inner_cmd;
 	    	inner_cmd = inner_cmd->cmd_next)
@@ -1968,11 +1978,6 @@ parser_flowop_get_attrs(cmd_t *cmd, flowop_t *flowop)
 	/* Get the filename from attribute */
 	if ((attr = get_attr(cmd, FSA_FILENAME))) {
 		flowop->fo_filename = attr->attr_avd;
-		if (flowop->fo_filename == NULL) {
-			filebench_log(LOG_ERROR,
-			    "define flowop: no filename specfied");
-			filebench_shutdown(1);
-		}
 	} else {
 		/* no filename attribute specified */
 		flowop->fo_filename = NULL;

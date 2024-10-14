@@ -42,6 +42,7 @@ typedef struct procflow {
 	struct threadflow *pf_threads;
 	int		pf_attrs;
 	avd_t		pf_nice;
+	int			seed;
 } procflow_t;
 
 procflow_t *procflow_define(char *name, avd_t instances);
