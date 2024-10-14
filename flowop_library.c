@@ -176,6 +176,11 @@ static flowop_proto_t flowoplib_funcs[] = {
 	flowoplib_testrandvar, flowoplib_testrandvar_destruct}
 };
 
+// void print_tf_fd(threadflow_t *tf) {
+// 	filebench_log(LOG_INFO, "tf_fd[%d]: fd_num = %d, fd_ptr = %p\n", 
+// 			1, tf->tf_fd[1].fd_num, tf->tf_fd[1].fd_ptr);
+// }
+
 /*
  * Loops through the list of flowops defined in this
  * module, and creates and initializes a flowop for each one
@@ -266,6 +271,9 @@ flowoplib_pickfile(filesetentry_t **filep, flowop_t *flowop, int flags, int tid)
 		    avd_get_str(fileset->fs_name));
 		return (FILEBENCH_NORSC);
 	}
+
+	// filebench_log(LOG_INFO, "exiting pickfile");
+	// print_tf_fd(flowop->fo_thread);
 
 	return (FILEBENCH_OK);
 }
@@ -361,6 +369,8 @@ static int
 flowoplib_filesetup(threadflow_t *threadflow, flowop_t *flowop,
     fbint_t *wssp, fb_fdesc_t **fdescp)
 {
+	// filebench_log(LOG_INFO, "entering filesetup");
+	// print_tf_fd(threadflow);
 	int fd = flowoplib_fdnum(threadflow, flowop);
 
 	if (fd == -1)
@@ -414,6 +424,9 @@ flowoplib_filesetup(threadflow_t *threadflow, flowop_t *flowop,
 		else
 			*wssp = avd_get_int(flowop->fo_fileset->fs_size);
 	}
+
+	// filebench_log(LOG_INFO, "exiting filesetup");
+	// print_tf_fd(threadflow);
 
 	return (FILEBENCH_OK);
 }
@@ -1450,11 +1463,15 @@ flowoplib_sempost(threadflow_t *threadflow, flowop_t *flowop)
 static int
 flowoplib_openfile(threadflow_t *threadflow, flowop_t *flowop)
 {
+	// filebench_log(LOG_INFO, "entering openfile");
+	// print_tf_fd(threadflow);
 	int fd = flowoplib_fdnum(threadflow, flowop);
 
 	if (fd == -1)
 		return (FILEBENCH_ERROR);
 
+	// filebench_log(LOG_INFO, "exiting openfile");
+	// print_tf_fd(threadflow);
 	return (flowoplib_openfile_common(threadflow, flowop, fd));
 }
 
@@ -1516,6 +1533,7 @@ flowoplib_openfile_common(threadflow_t *threadflow, flowop_t *flowop, int fd)
 	}
 
 	if (flowop->fo_fileset->fs_attrs & FILESET_IS_RAW_DEV) {
+		filebench_log(LOG_INFO, "FILESET_IS_RAW_DEV is true");
 		int open_attrs = 0;
 		char name[MAXPATHLEN];
 
@@ -1624,6 +1642,9 @@ flowoplib_createfile(threadflow_t *threadflow, flowop_t *flowop)
 	int fd;
 	int err;
 
+	// filebench_log(LOG_INFO, "entering createfile");
+	// print_tf_fd(threadflow);
+
 	fd = flowoplib_fdnum(threadflow, flowop);
 
 	if (threadflow->tf_fd[fd].fd_ptr != NULL) {
@@ -1667,8 +1688,14 @@ flowoplib_createfile(threadflow_t *threadflow, flowop_t *flowop)
         threadflow->tf_fse[fd] = file;
 
 		flowop_beginop(threadflow, flowop);
+		// filebench_log(LOG_INFO, "entering openfile");
+		// filebench_log(LOG_INFO, "tf_fd[%d]: fd_num = %d, fd_ptr = %p\n", 
+		// 			1, threadflow->tf_fd[1].fd_num, threadflow->tf_fd[1].fd_ptr);
 		err = fileset_openfile(&threadflow->tf_fd[fd], flowop->fo_fileset,
 			file, openflag, 0666, flowoplib_fileattrs(flowop));
+		// filebench_log(LOG_INFO, "exiting openfile");
+		// filebench_log(LOG_INFO, "tf_fd[%d]: fd_num = %d, fd_ptr = %p\n", 
+		// 			1, threadflow->tf_fd[1].fd_num, threadflow->tf_fd[1].fd_ptr);
 		flowop_endop(threadflow, flowop, 0);
 
         if (err == FILEBENCH_ERROR) {
@@ -1681,6 +1708,9 @@ flowoplib_createfile(threadflow_t *threadflow, flowop_t *flowop)
 	filebench_log(LOG_DEBUG_SCRIPT,
 	    "flowop %s: created %s fd[%d] = %d",
 	    flowop->fo_name, file->fse_path, fd, threadflow->tf_fd[fd]);
+
+	// filebench_log(LOG_INFO, "exiting createfile");
+	// print_tf_fd(threadflow);
 
 	return (FILEBENCH_OK);
 }
@@ -1702,6 +1732,9 @@ flowoplib_deletefile(threadflow_t *threadflow, flowop_t *flowop)
 	char path[MAXPATHLEN];
 	char *pathtmp;
 	int fd;
+
+	// filebench_log(LOG_INFO, "entering deletefile");
+	// print_tf_fd(threadflow);
 
 	fd = flowoplib_fdnum(threadflow, flowop);
 
@@ -1797,6 +1830,9 @@ flowoplib_deletefile(threadflow_t *threadflow, flowop_t *flowop)
 	fileset_unbusy(file, TRUE, FALSE, -file->fse_open_cnt);
 
 	filebench_log(LOG_DEBUG_SCRIPT, "deleted file %s", file->fse_path);
+
+	// filebench_log(LOG_INFO, "exiting deletefile");
+	// print_tf_fd(threadflow);
 
 	return (FILEBENCH_OK);
 }
@@ -2259,8 +2295,8 @@ flowoplib_readwholefile(threadflow_t *threadflow, flowop_t *flowop)
 
 	if (ret < 0) {
 		filebench_log(LOG_ERROR,
-		    "readwhole fail Failed to read whole file: %s",
-		    strerror(errno));
+		    "readwhole fail Failed to read whole file: %s, fd: %d",
+		    strerror(errno), fdesc->fd_num);
 		return (FILEBENCH_ERROR);
 	}
 
