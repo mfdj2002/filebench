@@ -236,18 +236,27 @@ flowoplib_pickfile(filesetentry_t **filep, flowop_t *flowop, int flags, int tid)
 	fileset_t	*fileset;
 	int		fileindex;
 
+	// filebench_log(LOG_INFO, "entering pickfile");
+	// print_tf_fd(flowop->fo_thread);
 	if ((fileset = flowop->fo_fileset) == NULL) {
 		filebench_log(LOG_ERROR, "flowop NO fileset");
 		return (FILEBENCH_ERROR);
 	}
 
 	if (flowop->fo_fileindex) {
-		fileindex = (int)(avd_get_dbl(flowop->fo_fileindex));
+		fileindex = (int)(avd_get_dbl(flowop->fo_fileindex)); 
+		//what if this doesn't exist? There's a fallback mechanism in fileset_find_entry...
 		fileindex = fileindex % fileset->fs_constentries;
-		flags |= FILESET_PICKBYINDEX;
+		
+		filebench_log(LOG_DEBUG_IMPL, "chosen fileindex: %d", fileindex);
+		//in the old impl, setting a min to the randvar of a fileidx
+		//doesn't do anything because you wrap around anyways
 	} else {
 		fileindex = 0;
 	}
+
+	// pick by index either way
+	flags |= FILESET_PICKBYINDEX;
 
 	if ((*filep = fileset_pick(fileset, FILESET_PICKFILE | flags,
 	    tid, fileindex)) == NULL) {
@@ -1565,26 +1574,28 @@ flowoplib_openfile_common(threadflow_t *threadflow, flowop_t *flowop, int fd)
 		return (FILEBENCH_OK);
 	}
 
-	if ((err = flowoplib_pickfile(&file, flowop,
-	    FILESET_PICKEXISTS, tid)) != FILEBENCH_OK) {
-		filebench_log(LOG_DEBUG_SCRIPT,
-		    "flowop %s failed to pick file from %s on fd %d",
-		    flowop->fo_name, fileset_name, fd);
-		return (err);
-	}
+	do {
+        err = flowoplib_pickfile(&file, flowop, FILESET_PICKEXISTS, tid);
+        if (err != FILEBENCH_OK) {
+            filebench_log(LOG_DEBUG_SCRIPT,
+                "flowop %s failed to pick file from %s on fd %d",
+                flowop->fo_name, fileset_name, fd);
+            return err;
+        }
 
-	threadflow->tf_fse[fd] = file;
+        threadflow->tf_fse[fd] = file;
 
-	flowop_beginop(threadflow, flowop);
-	err = fileset_openfile(&threadflow->tf_fd[fd], flowop->fo_fileset,
-	    file, openflag, 0666, flowoplib_fileattrs(flowop));
-	flowop_endop(threadflow, flowop, 0);
+        flowop_beginop(threadflow, flowop);
+        err = fileset_openfile(&threadflow->tf_fd[fd], flowop->fo_fileset,
+            file, openflag, 0666, flowoplib_fileattrs(flowop));
+        flowop_endop(threadflow, flowop, 0);
 
-	if (err == FILEBENCH_ERROR) {
-		filebench_log(LOG_ERROR, "flowop %s failed to open file %s",
-		    flowop->fo_name, file->fse_path);
-		return (FILEBENCH_ERROR);
-	}
+        if (err == FILEBENCH_ERROR) {
+            filebench_log(LOG_ERROR, "flowop %s failed to open file %s",
+                flowop->fo_name, file->fse_path);
+			filebench_log(LOG_INFO, "retrying open right now...");
+        }
+    } while (err == FILEBENCH_ERROR);
 
 	filebench_log(LOG_DEBUG_SCRIPT,
 	    "flowop %s: opened %s fd[%d] = %d",
@@ -1642,27 +1653,30 @@ flowoplib_createfile(threadflow_t *threadflow, flowop_t *flowop)
 		return (FILEBENCH_ERROR);
 	}
 
-	if ((err = flowoplib_pickfile(&file, flowop,
-	    FILESET_PICKNOEXIST, 0)) != FILEBENCH_OK) {
-		filebench_log(LOG_DEBUG_SCRIPT,
-		    "flowop %s failed to pick file from fileset %s",
-		    flowop->fo_name,
-		    avd_get_str(flowop->fo_fileset->fs_name));
-		return (err);
-	}
 
-	threadflow->tf_fse[fd] = file;
+	do {
+        (err = flowoplib_pickfile(&file, flowop, FILESET_PICKNOEXIST, 0));
+        if (err != FILEBENCH_OK) {
+            filebench_log(LOG_DEBUG_SCRIPT,
+				"flowop %s failed to pick file from fileset %s",
+				flowop->fo_name,
+				avd_get_str(flowop->fo_fileset->fs_name));
+            return err;
+        }
 
-	flowop_beginop(threadflow, flowop);
-	err = fileset_openfile(&threadflow->tf_fd[fd], flowop->fo_fileset,
-		file, openflag, 0666, flowoplib_fileattrs(flowop));
-	flowop_endop(threadflow, flowop, 0);
+        threadflow->tf_fse[fd] = file;
 
-	if (err == FILEBENCH_ERROR) {
-		filebench_log(LOG_ERROR, "failed to create file %s",
-		    flowop->fo_name);
-		return (FILEBENCH_ERROR);
-	}
+		flowop_beginop(threadflow, flowop);
+		err = fileset_openfile(&threadflow->tf_fd[fd], flowop->fo_fileset,
+			file, openflag, 0666, flowoplib_fileattrs(flowop));
+		flowop_endop(threadflow, flowop, 0);
+
+        if (err == FILEBENCH_ERROR) {
+			filebench_log(LOG_ERROR, "failed to create file %s", flowop->fo_name);
+			filebench_log(LOG_INFO, "retrying create right now...");
+		}
+
+    } while (err == FILEBENCH_ERROR);
 
 	filebench_log(LOG_DEBUG_SCRIPT,
 	    "flowop %s: created %s fd[%d] = %d",
@@ -1776,7 +1790,7 @@ flowoplib_deletefile(threadflow_t *threadflow, flowop_t *flowop)
 
 	/* delete the selected file */
 	flowop_beginop(threadflow, flowop);
-	(void) FB_UNLINK(path);
+	(void) FB_UNLINK(path); // doesn't check return value
 	flowop_endop(threadflow, flowop, 0);
 
 	/* indicate that it is no longer busy and no longer exists */
@@ -2177,6 +2191,7 @@ flowoplib_statfile(threadflow_t *threadflow, flowop_t *flowop)
 
 	}
 
+	// so even if stat fails, we still return OK
 	return (FILEBENCH_OK);
 }
 

@@ -444,8 +444,12 @@ fileset_openfile(fb_fdesc_t *fdesc, fileset_t *fileset,
 
 	/* If we are going to create a file, create the parent dirs */
 	if ((flag & O_CREAT) && (stat64(dir, &sb) != 0)) {
-		if (fileset_mkdir(dir, 0755) == FILEBENCH_ERROR)
+		if (fileset_mkdir(dir, 0755) == FILEBENCH_ERROR) {
+			filebench_log(LOG_ERROR,
+				"Failed to create parent dir of file %d, %s, with status %x: %s",
+				entry->fse_index, path, entry->fse_flags, strerror(errno));
 			return (FILEBENCH_ERROR);
+		}
 	}
 
 	if (attrs & FLOW_ATTR_DSYNC)
@@ -696,6 +700,7 @@ fileset_pick(fileset_t *fileset, int flags, int tid, int index)
 	}
 
 	if (flags & FILESET_PICKUNIQUE) {
+		// this branch is only entered when constructing the avl tree
 		uint64_t  index64;
 
 		/*
@@ -718,6 +723,11 @@ fileset_pick(fileset_t *fileset, int flags, int tid, int index)
 
 	} else if (flags & FILESET_PICKBYINDEX) {
 		/* pick by supplied index */
+		if (!index) {
+			uint64_t  index64;
+			fb_random64(&index64, (uint64_t)atp->avl_numnodes, 0, NULL);
+			index = (int)index64;
+		}
 		entry = fileset_find_entry(atp, index);
 
 	} else {
@@ -1137,6 +1147,7 @@ fileset_create(fileset_t *fileset)
 
 	/* alloc any leaf directories, as required */
 	fileset_pickreset(fileset, FILESET_PICKLEAFDIR);
+	// not called unless you specify the leafdir arg in fileset...
 	while ((entry = fileset_pick(fileset,
 	    FILESET_PICKFREE | FILESET_PICKLEAFDIR, 0, 0))) {
 
