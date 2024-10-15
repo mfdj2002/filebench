@@ -192,6 +192,9 @@ fb_lfs_pread(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize, off64_t fileoffset)
 static int
 fb_lfs_read(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize)
 {
+	pthread_t tid = pthread_self();
+	printf("Thread %lu reading fd = %d\n", (unsigned long)tid, fd->fd_num);
+	fflush(stdout);
 	return (read(fd->fd_num, iobuf, iosize));
 }
 
@@ -482,10 +485,18 @@ fb_lfsflow_aiowait(threadflow_t *threadflow, flowop_t *flowop)
 static int
 fb_lfs_open(fb_fdesc_t *fd, char *path, int flags, int perms)
 {
+	pthread_t tid = pthread_self();
+	printf("thread %lu opening fd = %d, path = %s\n",
+				(unsigned long)tid, fd->fd_num, path);
+		fflush(stdout);
 	if ((fd->fd_num = open64(path, flags, perms)) < 0)
 		return (FILEBENCH_ERROR);
-	else
+	else {
+		printf("thread %lu opened fd = %d, path = %s\n",
+				(unsigned long)tid, fd->fd_num, path);
+		fflush(stdout);
 		return (FILEBENCH_OK);
+	}
 }
 
 /*
@@ -494,7 +505,12 @@ fb_lfs_open(fb_fdesc_t *fd, char *path, int flags, int perms)
 static int
 fb_lfs_unlink(char *path)
 {
-	return (unlink(path));
+	pthread_t tid = pthread_self();
+	printf("Thread %lu unlinking path = %s\n", (unsigned long)tid, path);
+	int ret = unlink(path);
+	printf("Thread %lu unlinked path = %s\n", (unsigned long)tid, path);
+	fflush(stdout);
+	return ret;
 }
 
 /*
@@ -540,7 +556,13 @@ fb_lfs_rename(const char *old, const char *new)
 static int
 fb_lfs_close(fb_fdesc_t *fd)
 {
-	return (close(fd->fd_num));
+	pthread_t tid = pthread_self();
+
+	printf("Thread %lu closing fd = %d\n", (unsigned long) tid, fd->fd_num);
+	int ret = close(fd->fd_num);
+	printf("Thread %lu closed fd = %d\n", (unsigned long) tid, fd->fd_num);
+	fflush(stdout);
+	return ret;
 }
 
 /*
@@ -639,6 +661,9 @@ fb_lfs_pwrite(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize, off64_t offset)
 static int
 fb_lfs_write(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize)
 {
+	pthread_t tid = pthread_self();
+	printf("Thread %lu writing fd = %d\n", (unsigned long)tid, fd->fd_num);
+	fflush(stdout);
 	return (write(fd->fd_num, iobuf, iosize));
 }
 
