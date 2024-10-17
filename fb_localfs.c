@@ -183,7 +183,7 @@ fb_lfs_freemem(fb_fdesc_t *fd, off64_t size)
 static int
 fb_lfs_pread(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize, off64_t fileoffset)
 {
-    filebench_log(LOG_INFO, "doing pread on fd: %d", fd->fd_num);
+    filebench_log(LOG_DEBUG_IMPL, "doing pread on fd: %d", fd->fd_num);
     return (pread64(fd->fd_num, iobuf, iosize, fileoffset));
 }
 
@@ -193,7 +193,7 @@ fb_lfs_pread(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize, off64_t fileoffset)
 static int
 fb_lfs_read(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize)
 {
-	filebench_log(LOG_INFO, "doing read on fd: %d", fd->fd_num);
+	filebench_log(LOG_DEBUG_IMPL, "doing read on fd: %d", fd->fd_num);
 	return (read(fd->fd_num, iobuf, iosize));
 }
 
@@ -484,13 +484,13 @@ fb_lfsflow_aiowait(threadflow_t *threadflow, flowop_t *flowop)
 static int
 fb_lfs_open(fb_fdesc_t *fd, char *path, int flags, int perms)
 {
-	filebench_log(LOG_INFO, "doing open on fd: %d", fd->fd_num);
+	filebench_log(LOG_DEBUG_IMPL, "doing open on fd: %d", fd->fd_num);
 	if ((fd->fd_num = open64(path, flags, perms)) < 0) {
-		filebench_log(LOG_INFO, "open successful on fd: %d", fd->fd_num);
+		filebench_log(LOG_DEBUG_IMPL, "open successful on fd: %d", fd->fd_num);
 		return (FILEBENCH_ERROR);
 	}
 	else {
-		filebench_log(LOG_INFO, "open failed on fd: %d", fd->fd_num);
+		filebench_log(LOG_DEBUG_IMPL, "open failed on fd: %d", fd->fd_num);
 		return (FILEBENCH_OK);
 	}
 }
@@ -528,7 +528,7 @@ fb_lfs_fsync(fb_fdesc_t *fd)
 static int
 fb_lfs_lseek(fb_fdesc_t *fd, off64_t offset, int whence)
 {
-	filebench_log(LOG_INFO, "doing lseek on fd: %d", fd->fd_num);
+	filebench_log(LOG_DEBUG_IMPL, "doing lseek on fd: %d", fd->fd_num);
 	return (lseek64(fd->fd_num, offset, whence));
 }
 
@@ -548,7 +548,7 @@ fb_lfs_rename(const char *old, const char *new)
 static int
 fb_lfs_close(fb_fdesc_t *fd)
 {
-	filebench_log(LOG_INFO, "doing close on fd: %d", fd->fd_num);
+	filebench_log(LOG_DEBUG_IMPL, "doing close on fd: %d", fd->fd_num);
 	return (close(fd->fd_num));
 }
 
@@ -621,7 +621,7 @@ fb_lfs_closedir(DIR *dirp)
 static int
 fb_lfs_fstat(fb_fdesc_t *fd, struct stat64 *statbufp)
 {
-	filebench_log(LOG_INFO, "doing fstst on fd: %d", fd->fd_num);
+	filebench_log(LOG_DEBUG_IMPL, "doing fstst on fd: %d", fd->fd_num);
 	return (fstat64(fd->fd_num, statbufp));
 }
 
@@ -640,7 +640,7 @@ fb_lfs_stat(char *path, struct stat64 *statbufp)
 static int
 fb_lfs_pwrite(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize, off64_t offset)
 {
-	filebench_log(LOG_INFO, "doing pwrite on fd: %d", fd->fd_num);
+	filebench_log(LOG_DEBUG_IMPL, "doing pwrite on fd: %d", fd->fd_num);
 	return (pwrite64(fd->fd_num, iobuf, iosize, offset));
 }
 
@@ -650,7 +650,7 @@ fb_lfs_pwrite(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize, off64_t offset)
 static int
 fb_lfs_write(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize)
 {
-	filebench_log(LOG_INFO, "doing write on fd: %d", fd->fd_num);
+	filebench_log(LOG_DEBUG_IMPL, "doing write on fd: %d", fd->fd_num);
 	return (write(fd->fd_num, iobuf, iosize));
 }
 
