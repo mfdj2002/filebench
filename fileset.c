@@ -727,6 +727,7 @@ fileset_pick(fileset_t *fileset, int flags, int tid, int index)
 			uint64_t  index64;
 			fb_random64(&index64, (uint64_t)atp->avl_numnodes, 0, NULL);
 			index = (int)index64;
+			filebench_log(LOG_DEBUG_IMPL, "[tid %d] random64 chosen index: %d", tid, index);
 		}
 		entry = fileset_find_entry(atp, index);
 
@@ -780,6 +781,8 @@ fileset_pick(fileset_t *fileset, int flags, int tid, int index)
 		if (entry == NULL)
 			entry = avl_first(atp);
 
+		filebench_log(LOG_DEBUG_IMPL, "[tid %d] trying next index: %d", tid, entry->fse_index);
+
 		/* see if we have wrapped around */
 		if ((entry == NULL) || (entry == start_point)) {
 			filebench_log(LOG_DEBUG_SCRIPT,
@@ -788,6 +791,7 @@ fileset_pick(fileset_t *fileset, int flags, int tid, int index)
 		}
 
 	}
+	filebench_log(LOG_DEBUG_IMPL, "[tid %d] eventually chosen index: %d", tid, entry->fse_index);
 
 	/* update file or directory idle counts */
 	switch (flags & FILESET_PICKMASK) {
@@ -1072,94 +1076,16 @@ fileset_create(fileset_t *fileset)
 	} else
 		preallocpercent = avd_get_int(fileset->fs_preallocpercent);
 
-	randno = ((RAND_MAX * (100 - preallocpercent)) / 100);
-
 	/* alloc any files, as required */
 	fileset_pickreset(fileset, FILESET_PICKFILE);
 	//for loop to create the number of files based on preallocpercent
-	// int i = 0;
-	// for (; i < fileset->fs_constentries * preallocpercent / 100; i++) {
-	// 	// pick a file from the fileset
-	// 	filebench_log(LOG_INFO,
-	// 		"preallocating file with index %d", i);
-	// 	entry = fileset_pick(fileset, FILESET_PICKFREE | FILESET_PICKFILE, 0, i);
-	// 	pthread_t tid;
-
-	// 	preallocated++;
-
-	// 	if (reusing)
-	// 		entry->fse_flags |= FSE_REUSING;
-	// 	else
-	// 		entry->fse_flags &= (~FSE_REUSING);
-
-	// 	/* fire off allocation threads for each file if paralloc set */
-	// 	if (avd_get_bool(fileset->fs_paralloc)) {
-
-	// 		/* limit total number of simultaneous allocations */
-	// 		(void) pthread_mutex_lock(
-	// 		    &filebench_shm->shm_fsparalloc_lock);
-	// 		while (filebench_shm->shm_fsparalloc_count
-	// 		    >= MAX_PARALLOC_THREADS) {
-	// 			(void) pthread_cond_wait(
-	// 			    &filebench_shm->shm_fsparalloc_cv,
-	// 			    &filebench_shm->shm_fsparalloc_lock);
-	// 		}
-
-	// 		/* quit if any allocation thread reports an error */
-	// 		if (filebench_shm->shm_fsparalloc_count < 0) {
-	// 			(void) pthread_mutex_unlock(
-	// 			    &filebench_shm->shm_fsparalloc_lock);
-	// 			return (FILEBENCH_ERROR);
-	// 		}
-
-	// 		filebench_shm->shm_fsparalloc_count++;
-	// 		(void) pthread_mutex_unlock(
-	// 		    &filebench_shm->shm_fsparalloc_lock);
-
-	// 		/*
-	// 		 * Fire off a detached allocation thread per file.
-	// 		 * The thread will self destruct when it finishes
-	// 		 * writing pre-allocation data to the file.
-	// 		 */
-	// 		if (pthread_create(&tid, NULL,
-	// 		    (void *(*)(void*))fileset_alloc_thread,
-	// 		    entry) == 0) {
-	// 			/*
-	// 			 * A thread was created; detach it so it can
-	// 			 * fully quit when finished.
-	// 			 */
-	// 			(void) pthread_detach(tid);
-	// 		} else {
-	// 			filebench_log(LOG_ERROR,
-	// 			    "File prealloc thread create failed");
-	// 			filebench_shutdown(1);
-	// 		}
-
-	// 	} else {
-	// 		if (fileset_alloc_file(entry) == FILEBENCH_ERROR)
-	// 			return FILEBENCH_ERROR;
-	// 	}
-	
-	// }
-	// for (; i < fileset->fs_constentries; i++)  {
-	// 	filebench_log(LOG_INFO,
-	// 		"freeing file with index %d", i);
-	// 	entry = fileset_pick(fileset, FILESET_PICKFREE | FILESET_PICKFILE, 0, i);
-	// 	/* unbusy the unallocated entry */
-	// 	fileset_unbusy(entry, TRUE, FALSE, 0);
-	// }
-	while ((entry = fileset_pick(fileset,
-	    FILESET_PICKFREE | FILESET_PICKFILE, 0, 0))) {
+	int i = 0;
+	for (; i < fileset->fs_constentries * preallocpercent / 100; i++) {
+		// pick a file from the fileset
+		filebench_log(LOG_DEBUG_IMPL,
+			"preallocating file with index %d", i);
+		entry = fileset_pick(fileset, FILESET_PICKFREE | FILESET_PICKFILE, 0, i);
 		pthread_t tid;
-		int newrand;
-
-		newrand = rand();
-
-		if (randno && newrand <= randno) {
-			/* unbusy the unallocated entry */
-			fileset_unbusy(entry, TRUE, FALSE, 0);
-			continue;
-		}
 
 		preallocated++;
 
@@ -1215,8 +1141,17 @@ fileset_create(fileset_t *fileset)
 			if (fileset_alloc_file(entry) == FILEBENCH_ERROR)
 				return FILEBENCH_ERROR;
 		}
+	
+	}
+	for (; i < fileset->fs_constentries; i++)  {
+		filebench_log(LOG_DEBUG_IMPL,
+			"freeing file with index %d", i);
+		entry = fileset_pick(fileset, FILESET_PICKFREE | FILESET_PICKFILE, 0, i);
+		/* unbusy the unallocated entry */
+		fileset_unbusy(entry, TRUE, FALSE, 0);
 	}
 
+	randno = ((RAND_MAX * (100 - preallocpercent)) / 100);
 	/* alloc any leaf directories, as required */
 	fileset_pickreset(fileset, FILESET_PICKLEAFDIR);
 	// not called unless you specify the leafdir arg in fileset...
