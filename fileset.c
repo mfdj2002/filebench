@@ -38,6 +38,7 @@
 #include "gamma_dist.h"
 #include "utils.h"
 #include "fsplug.h"
+#include "logger.h"
 
 static int filecreate_done;
 
@@ -427,83 +428,93 @@ int
 fileset_openfile(fb_fdesc_t *fdesc, fileset_t *fileset,
     filesetentry_t *entry, int flag, int filemode, int attrs)
 {
-	char path[MAXPATHLEN];
-	char dir[MAXPATHLEN];
-	char *pathtmp;
-	struct stat64 sb;
-	int open_attrs = 0;
+    LOG("entry - fdesc: %p, fileset: %p, entry: %p, flag: 0x%x, filemode: 0%o, attrs: 0x%x",
+        (void*)fdesc, (void*)fileset, (void*)entry, flag, filemode, attrs);
 
-	(void) fb_strlcpy(path, avd_get_str(fileset->fs_path), MAXPATHLEN);
-	(void) fb_strlcat(path, "/", MAXPATHLEN);
-	(void) fb_strlcat(path, avd_get_str(fileset->fs_name), MAXPATHLEN);
-	pathtmp = fileset_resolvepath(entry);
-	(void) fb_strlcat(path, pathtmp, MAXPATHLEN);
-	(void) fb_strlcpy(dir, path, MAXPATHLEN);
-	free(pathtmp);
-	(void) trunc_dirname(dir);
+    char path[MAXPATHLEN];
+    char dir[MAXPATHLEN];
+    char *pathtmp;
+    struct stat64 sb;
+    int open_attrs = 0;
 
-	/* If we are going to create a file, create the parent dirs */
-	if ((flag & O_CREAT) && (stat64(dir, &sb) != 0)) {
-		if (fileset_mkdir(dir, 0755) == FILEBENCH_ERROR) {
-			filebench_log(LOG_ERROR,
-				"Failed to create parent dir of file %d, %s, with status %x: %s",
-				entry->fse_index, path, entry->fse_flags, strerror(errno));
-			return (FILEBENCH_ERROR);
-		}
-	}
+    (void) fb_strlcpy(path, avd_get_str(fileset->fs_path), MAXPATHLEN);
+    (void) fb_strlcat(path, "/", MAXPATHLEN);
+    (void) fb_strlcat(path, avd_get_str(fileset->fs_name), MAXPATHLEN);
+    
+    pathtmp = fileset_resolvepath(entry);
+    LOG("resolved path: %s", pathtmp);
+    
+    (void) fb_strlcat(path, pathtmp, MAXPATHLEN);
+    (void) fb_strlcpy(dir, path, MAXPATHLEN);
+    free(pathtmp);
+    
+    (void) trunc_dirname(dir);
+    LOG("full path: %s, directory: %s", path, dir);
 
-	if (attrs & FLOW_ATTR_DSYNC)
-		open_attrs |= O_SYNC;
+    /* If we are going to create a file, create the parent dirs */
+    if ((flag & O_CREAT) && (stat64(dir, &sb) != 0)) {
+        LOG("creating parent directory: %s", dir);
+        if (fileset_mkdir(dir, 0755) == FILEBENCH_ERROR) {
+            LOG("failed to create parent dir %s - errno: %d (%s)", 
+                dir, errno, strerror(errno));
+            return (FILEBENCH_ERROR);
+        }
+    }
+
+    if (attrs & FLOW_ATTR_DSYNC)
+        open_attrs |= O_SYNC;
 
 #ifdef HAVE_O_DIRECT
-	if (attrs & FLOW_ATTR_DIRECTIO)
-		open_attrs |= O_DIRECT;
+    if (attrs & FLOW_ATTR_DIRECTIO) {
+        open_attrs |= O_DIRECT;
+    }
 #endif /* HAVE_O_DIRECT */
 
-	if (FB_OPEN(fdesc, path, flag | open_attrs, filemode)
-	    == FILEBENCH_ERROR) {
-		filebench_log(LOG_ERROR,
-		    "Failed to open file %d, %s, with status %x: %s",
-		    entry->fse_index, path, entry->fse_flags, strerror(errno));
-
-		fileset_unbusy(entry, FALSE, FALSE, 0);
-		return (FILEBENCH_ERROR);
-	}
+    LOG("opening file with flags: 0x%x | 0x%x = 0x%x", 
+        flag, open_attrs, flag | open_attrs);
+    
+    if (FB_OPEN(fdesc, path, flag | open_attrs, filemode) == FILEBENCH_ERROR) {
+        fileset_unbusy(entry, FALSE, FALSE, 0);
+        return (FILEBENCH_ERROR);
+    }
 
 #ifdef HAVE_DIRECTIO
-	if (attrs & FLOW_ATTR_DIRECTIO)
-		(void)directio(fdesc->fd_num, DIRECTIO_ON);
+    if (attrs & FLOW_ATTR_DIRECTIO) {
+        LOG("enabling DIRECTIO_ON for fd: %d", fdesc->fd_num);
+        (void)directio(fdesc->fd_num, DIRECTIO_ON);
+    }
 #endif /* HAVE_DIRECTIO */
 
 #ifdef HAVE_NOCACHE_FCNTL
-	if (attrs & FLOW_ATTR_DIRECTIO)
-		(void)fcntl(fdesc->fd_num, F_NOCACHE, 1);
+    if (attrs & FLOW_ATTR_DIRECTIO) {
+        LOG("setting F_NOCACHE for fd: %d", fdesc->fd_num);
+        (void)fcntl(fdesc->fd_num, F_NOCACHE, 1);
+    }
 #endif /* HAVE_NOCACHE_FCNTL */
 
-	/* Disable read ahead with the help of fadvise, if asked for */
-	if (attrs & FLOW_ATTR_FADV_RANDOM) {
+    /* Disable read ahead with the help of fadvise, if asked for */
+    if (attrs & FLOW_ATTR_FADV_RANDOM) {
 #ifdef HAVE_FADVISE
-		if (posix_fadvise(fdesc->fd_num, 0, 0, POSIX_FADV_RANDOM) 
-			!= FILEBENCH_OK) {
-			filebench_log(LOG_ERROR,
-				"Failed to disable read ahead for file %s, with status %s", 
-			    	path, strerror(errno));
-			fileset_unbusy(entry, FALSE, FALSE, 0);
-			return (FILEBENCH_ERROR);
-		}
-		filebench_log(LOG_INFO, "** Read ahead disabled **");
+        LOG("attempting to disable read ahead using POSIX_FADV_RANDOM");
+        if (posix_fadvise(fdesc->fd_num, 0, 0, POSIX_FADV_RANDOM) != FILEBENCH_OK) {
+            LOG("failed to disable read ahead - fd: %d, errno: %d (%s)",
+                fdesc->fd_num, errno, strerror(errno));
+            fileset_unbusy(entry, FALSE, FALSE, 0);
+            return (FILEBENCH_ERROR);
+        }
+        LOG("read ahead disabled successfully");
 #else
-		filebench_log(LOG_INFO, "** Read ahead was NOT disabled: not supported on this platform! **");
+        LOG("read ahead disable requested but not supported on platform");
 #endif
-	}
-
+    }
 
 	if (flag & O_CREAT)
 		fileset_unbusy(entry, TRUE, TRUE, 1);
 	else
 		fileset_unbusy(entry, FALSE, FALSE, 1);
 
-	return (FILEBENCH_OK);
+    LOG("exit - SUCCESS, fd: %d", fdesc->fd_num);
+    return (FILEBENCH_OK);
 }
 
 /*

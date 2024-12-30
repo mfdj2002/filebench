@@ -33,6 +33,7 @@
 #include "flowop.h"
 #include "stats.h"
 #include "ioprio.h"
+#include "logger.h"
 
 static flowop_t *flowop_define_common(threadflow_t *threadflow, char *name,
     flowop_t *inherit, flowop_t **flowoplist_hdp, int instance, int type);
@@ -442,7 +443,7 @@ flowop_start(threadflow_t *threadflow)
 		count = (int)avd_get_int(flowop->fo_iters);
 		for (i = 0; i < count; i++) {
 
-			filebench_log(LOG_DEBUG_SCRIPT, "%s: executing flowop "
+			LOG("%s: executing flowop "
 			    "%s-%d", threadflow->tf_name, flowop->fo_name,
 			    flowop->fo_instance);
 

@@ -44,6 +44,7 @@
 
 #include "filebench.h"
 #include "fsplug.h"
+#include "logger.h"
 
 #ifdef HAVE_AIO
 #include <aio.h>
@@ -190,11 +191,16 @@ fb_lfs_pread(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize, off64_t fileoffset)
 /*
  * Does a posix read. Returns what the read() returns.
  */
-static int
 fb_lfs_read(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize)
 {
-	filebench_log(LOG_DEBUG_IMPL, "doing read on fd: %d", fd->fd_num);
-	return (read(fd->fd_num, iobuf, iosize));
+    LOG("entry - fd_num: %d, iobuf: %p, size: %lld", 
+        fd->fd_num, (void*)iobuf, (long long)iosize);
+    
+    int ret = read(fd->fd_num, iobuf, iosize);
+    
+    LOG("exit - return: %d, errno: %d (%s)", 
+        ret, errno, (ret < 0) ? strerror(errno) : "success");
+    return ret;
 }
 
 #ifdef HAVE_AIO
@@ -484,24 +490,33 @@ fb_lfsflow_aiowait(threadflow_t *threadflow, flowop_t *flowop)
 static int
 fb_lfs_open(fb_fdesc_t *fd, char *path, int flags, int perms)
 {
-	filebench_log(LOG_DEBUG_IMPL, "doing open on fd: %d", fd->fd_num);
-	if ((fd->fd_num = open64(path, flags, perms)) < 0) {
-		filebench_log(LOG_DEBUG_IMPL, "open successful on fd: %d", fd->fd_num);
-		return (FILEBENCH_ERROR);
-	}
-	else {
-		filebench_log(LOG_DEBUG_IMPL, "open failed on fd: %d", fd->fd_num);
-		return (FILEBENCH_OK);
-	}
+    LOG("entry - fd: %p, path: %s, flags: 0x%x, perms: 0%o", (void*)fd, path, flags, perms);
+    
+    fd->fd_num = open64(path, flags, perms);
+    int ret;
+    
+    if (fd->fd_num < 0) {
+        ret = FILEBENCH_ERROR;
+        LOG("exit - FAILED fd_num: %d, errno: %d (%s)", fd->fd_num, errno, strerror(errno));
+    } else {
+        ret = FILEBENCH_OK;
+        LOG("exit - SUCCESS fd_num: %d", fd->fd_num);
+    }
+    
+    return ret;
 }
-
 /*
  * Does an unlink (delete) of a file.
  */
 static int
 fb_lfs_unlink(char *path)
 {
-	return (unlink(path));
+    LOG("entry - path: %s", path);
+    
+    int ret = unlink(path);
+    
+    LOG("exit - return: %d, errno: %d (%s)", ret, errno, (ret < 0) ? strerror(errno) : "success");
+    return ret;
 }
 
 /*
@@ -528,8 +543,14 @@ fb_lfs_fsync(fb_fdesc_t *fd)
 static int
 fb_lfs_lseek(fb_fdesc_t *fd, off64_t offset, int whence)
 {
-	filebench_log(LOG_DEBUG_IMPL, "doing lseek on fd: %d", fd->fd_num);
-	return (lseek64(fd->fd_num, offset, whence));
+    LOG("entry - fd_num: %d, offset: %lld, whence: %d", 
+        fd->fd_num, (long long)offset, whence);
+    
+    int ret = lseek64(fd->fd_num, offset, whence);
+    
+    LOG("exit - return: %d, errno: %d (%s)", 
+        ret, errno, (ret < 0) ? strerror(errno) : "success");
+    return ret;
 }
 
 /*
@@ -621,17 +642,25 @@ fb_lfs_closedir(DIR *dirp)
 static int
 fb_lfs_fstat(fb_fdesc_t *fd, struct stat64 *statbufp)
 {
-	filebench_log(LOG_DEBUG_IMPL, "doing fstst on fd: %d", fd->fd_num);
-	return (fstat64(fd->fd_num, statbufp));
+    LOG("entry - fd_num: %d, statbuf: %p", fd->fd_num, (void*)statbufp);
+    
+    int ret = fstat64(fd->fd_num, statbufp);
+    
+    LOG("exit - return: %d, errno: %d (%s)", ret, errno, (ret < 0) ? strerror(errno) : "success");
+    return ret;
 }
-
 /*
  * Does a stat of a file.
  */
 static int
 fb_lfs_stat(char *path, struct stat64 *statbufp)
 {
-	return (stat64(path, statbufp));
+    LOG("entry - path: %s, statbuf: %p", path, (void*)statbufp);
+    
+    int ret = stat64(path, statbufp);
+    
+    LOG("exit - return: %d, errno: %d (%s)", ret, errno, (ret < 0) ? strerror(errno) : "success");
+    return ret;
 }
 
 /*
@@ -650,8 +679,13 @@ fb_lfs_pwrite(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize, off64_t offset)
 static int
 fb_lfs_write(fb_fdesc_t *fd, caddr_t iobuf, fbint_t iosize)
 {
-	filebench_log(LOG_DEBUG_IMPL, "doing write on fd: %d", fd->fd_num);
-	return (write(fd->fd_num, iobuf, iosize));
+    LOG("entry - fd_num: %d, iobuf: %p, size: %llu", fd->fd_num, (void*)iobuf, iosize);
+    
+    int ret = write(fd->fd_num, iobuf, iosize);
+    
+    LOG("exit - return: %d, errno: %d (%s)", ret, errno, (ret < 0) ? strerror(errno) : "success");
+    
+    return ret;
 }
 
 /*

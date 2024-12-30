@@ -48,6 +48,7 @@
 #include "fb_random.h"
 #include "utils.h"
 #include "fsplug.h"
+#include "logger.h"
 
 /*
  * These routines implement the flowops from the f language. Each
@@ -369,7 +370,6 @@ static int
 flowoplib_filesetup(threadflow_t *threadflow, flowop_t *flowop,
     fbint_t *wssp, fb_fdesc_t **fdescp)
 {
-	// filebench_log(LOG_INFO, "entering filesetup");
 	// print_tf_fd(threadflow);
 	int fd = flowoplib_fdnum(threadflow, flowop);
 
@@ -534,6 +534,7 @@ flowoplib_iosetup(threadflow_t *threadflow, flowop_t *flowop,
 static int
 flowoplib_read(threadflow_t *threadflow, flowop_t *flowop)
 {
+	LOG("entry");
 	caddr_t iobuf;
 	fbint_t wss;
 	fbint_t iosize;
@@ -593,6 +594,7 @@ flowoplib_read(threadflow_t *threadflow, flowop_t *flowop)
 			(void) FB_LSEEK(fdesc, 0, SEEK_SET);
 	}
 
+	LOG("exit");
 	return (FILEBENCH_OK);
 }
 
@@ -1490,6 +1492,7 @@ flowoplib_openfile(threadflow_t *threadflow, flowop_t *flowop)
 static int
 flowoplib_openfile_common(threadflow_t *threadflow, flowop_t *flowop, int fd)
 {
+	LOG("entry, fd_num: %d", fd);
 	filesetentry_t *file;
 	char *fileset_name;
 	int tid = 0;
@@ -1615,10 +1618,10 @@ flowoplib_openfile_common(threadflow_t *threadflow, flowop_t *flowop, int fd)
         }
     } while (err == FILEBENCH_ERROR);
 
-	filebench_log(LOG_DEBUG_SCRIPT,
-	    "flowop %s: opened %s fd[%d] = %d",
+	LOG("flowop %s: opened %s fd[%d] = %d",
 	    flowop->fo_name, file->fse_path, fd, threadflow->tf_fd[fd]);
 
+	LOG("exit, fd_num: %d", fd);
 	return (FILEBENCH_OK);
 }
 
@@ -1637,6 +1640,7 @@ flowoplib_openfile_common(threadflow_t *threadflow, flowop_t *flowop, int fd)
 static int
 flowoplib_createfile(threadflow_t *threadflow, flowop_t *flowop)
 {
+	LOG("entry");
 	filesetentry_t *file;
 	int openflag = O_CREAT;
 	int fd;
@@ -1712,6 +1716,7 @@ flowoplib_createfile(threadflow_t *threadflow, flowop_t *flowop)
 	// filebench_log(LOG_INFO, "exiting createfile");
 	// print_tf_fd(threadflow);
 
+	LOG("exit");
 	return (FILEBENCH_OK);
 }
 
@@ -1727,6 +1732,7 @@ flowoplib_createfile(threadflow_t *threadflow, flowop_t *flowop)
 static int
 flowoplib_deletefile(threadflow_t *threadflow, flowop_t *flowop)
 {
+	LOG("entry");
 	filesetentry_t *file;
 	fileset_t *fileset;
 	char path[MAXPATHLEN];
@@ -1834,6 +1840,7 @@ flowoplib_deletefile(threadflow_t *threadflow, flowop_t *flowop)
 	// filebench_log(LOG_INFO, "exiting deletefile");
 	// print_tf_fd(threadflow);
 
+	LOG("exit");
 	return (FILEBENCH_OK);
 }
 
@@ -1924,6 +1931,7 @@ flowoplib_fsyncset(threadflow_t *threadflow, flowop_t *flowop)
 static int
 flowoplib_closefile(threadflow_t *threadflow, flowop_t *flowop)
 {
+	LOG("entry");
 	filesetentry_t *file;
 	fileset_t *fileset;
 	int fd;
@@ -1966,8 +1974,9 @@ flowoplib_closefile(threadflow_t *threadflow, flowop_t *flowop)
 
 	threadflow->tf_fd[fd].fd_ptr = NULL;
 
-	filebench_log(LOG_DEBUG_SCRIPT, "closed file %s", file->fse_path);
+	// filebench_log(LOG_DEBUG_SCRIPT, "closed file %s", file->fse_path);
 
+	LOG("exit");
 	return (FILEBENCH_OK);
 }
 
@@ -2145,6 +2154,7 @@ flowoplib_listdir(threadflow_t *threadflow, flowop_t *flowop)
 static int
 flowoplib_statfile(threadflow_t *threadflow, flowop_t *flowop)
 {
+	LOG("entry");
 	filesetentry_t *file;
 	fileset_t *fileset;
 	struct stat64 statbuf;
@@ -2227,6 +2237,7 @@ flowoplib_statfile(threadflow_t *threadflow, flowop_t *flowop)
 
 	}
 
+	LOG("exit");
 	// so even if stat fails, we still return OK
 	return (FILEBENCH_OK);
 }
@@ -2253,6 +2264,7 @@ flowoplib_statfile(threadflow_t *threadflow, flowop_t *flowop)
 static int
 flowoplib_readwholefile(threadflow_t *threadflow, flowop_t *flowop)
 {
+	LOG("entry");
 	caddr_t iobuf;
 	off64_t bytes = 0;
 	fb_fdesc_t *fdesc;
@@ -2300,6 +2312,7 @@ flowoplib_readwholefile(threadflow_t *threadflow, flowop_t *flowop)
 		return (FILEBENCH_ERROR);
 	}
 
+	LOG("exit");
 	return (FILEBENCH_OK);
 }
 
@@ -2381,6 +2394,7 @@ flowoplib_write(threadflow_t *threadflow, flowop_t *flowop)
 static int
 flowoplib_writewholefile(threadflow_t *threadflow, flowop_t *flowop)
 {
+	LOG("entry");
 	caddr_t iobuf;
 	filesetentry_t *file;
 	int wsize;
@@ -2432,6 +2446,7 @@ flowoplib_writewholefile(threadflow_t *threadflow, flowop_t *flowop)
 	/* Measure time to write bytes */
 	flowop_beginop(threadflow, flowop);
 	for (seek = 0; seek < wss; seek += wsize) {
+		LOG("writing %d to fd: %d", wsize, fdesc->fd_num);
 		ret = FB_WRITE(fdesc, iobuf, wsize);
 		if (ret != wsize) {
 			filebench_log(LOG_ERROR,
@@ -2442,9 +2457,11 @@ flowoplib_writewholefile(threadflow_t *threadflow, flowop_t *flowop)
 		}
 		wsize = (int)MIN(wss - seek, iosize);
 		bytes += ret;
+		LOG("total bytes written: %d", bytes);
 	}
 	flowop_endop(threadflow, flowop, bytes);
 
+	LOG("exit");
 	return (FILEBENCH_OK);
 }
 
@@ -2530,6 +2547,7 @@ flowoplib_appendfilerand(threadflow_t *threadflow, flowop_t *flowop)
 	}
 
 	fb_random64(&appendsize, iosize, 1LL, NULL);
+	LOG("appending %llu bytes to the file", ((u_longlong_t)appendsize));
 
 	/* skip if attempting zero length append */
 	if (appendsize == 0) {
